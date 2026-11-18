@@ -1,6 +1,10 @@
 {
   "name": "jekro",
   "private": true,
+  "workspaces": [
+  "apps/*",
+  "packages/*"
+],
   "version": "1.0.0",
   "description": "An AI-native issue tracker where people and AI agents work tickets side by side, with a built-in ledger that records, approves, and safely executes every agent action.",
   "main": "index.js",
