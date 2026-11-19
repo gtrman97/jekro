@@ -1,6 +1,7 @@
 {
   "name": "jekro",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -12,13 +13,17 @@
     "doc": "docs"
   },
   "scripts": {
-    "typecheck": "tsc -p apps/api/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/worker/tsconfig.json && tsc -p packages/ledger/tsconfig.json && tsc -p packages/shared/tsconfig.json"
+    "typecheck": "tsc -p apps/api/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/worker/tsconfig.json && tsc -p packages/ledger/tsconfig.json && tsc -p packages/shared/tsconfig.json",
+      "lint": "eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2"
+    "eslint": "^10.15.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.73.0"
   }
 }
