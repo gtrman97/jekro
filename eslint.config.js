@@ -7,4 +7,20 @@ export default tseslint.config(
   },
   js.configs.recommended,
   tseslint.configs.recommended,
+  {
+    files: ["packages/ledger/src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "(^|/)apps/|^@jekro/(api|web|worker)(/|$)",
+              message: "The ledger must not depend on application code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

@@ -27,3 +27,6 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint
+
+      - name: Test ledger package
+        run: npm test -w @jekro/ledger

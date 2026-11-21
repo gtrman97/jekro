@@ -1,6 +1,7 @@
-export type ActionStatus =
-  | "proposed"
-  | "approved"
-  | "executing"
-  | "succeeded"
-  | "failed";
+export type {
+  ActionStatus,
+  LedgerAction,
+  LedgerService,
+} from "./types.js";
+
+export { DefaultLedgerService } from "./service.js";
