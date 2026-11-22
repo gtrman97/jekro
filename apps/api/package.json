@@ -5,10 +5,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.ts"
+    "start": "node src/index.ts",
+    "test": "npm run build -w @jekro/shared && node --test test/*.test.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@jekro/shared": "1.0.0"
+  }
 }
