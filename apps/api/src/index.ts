@@ -1,21 +1,6 @@
-import { createServer } from "node:http";
+import { createAppServer } from "./server.ts";
 
-const server = createServer((request, response) => {
-  if (request.url === "/health" && request.method === "GET") {
-    response.writeHead(200, {
-      "Content-Type": "application/json",
-    });
-
-    response.end(JSON.stringify({ status: "ok" }));
-    return;
-  }
-
-  response.writeHead(404, {
-    "Content-Type": "application/json",
-  });
-
-  response.end(JSON.stringify({ error: "Not found" }));
-});
+const server = createAppServer();
 
 server.listen(3000, "127.0.0.1", () => {
   console.log("Jekro API listening at http://127.0.0.1:3000");
