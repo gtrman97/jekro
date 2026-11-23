@@ -13,6 +13,10 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@jekro/shared": "1.0.0"
+    "@jekro/shared": "1.0.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }
