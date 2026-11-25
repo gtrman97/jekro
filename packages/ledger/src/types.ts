@@ -3,7 +3,14 @@ export type ActionStatus =
   | "approved"
   | "executing"
   | "succeeded"
-  | "failed";
+  | "failed"
+  | "rejected"
+  | "expired"
+  | "outcome_unknown"
+  | "needs_review"
+  | "compensating"
+  | "compensated";
+
 
   export interface LedgerAction {
   id: string;
@@ -12,5 +19,25 @@ export type ActionStatus =
 }
 
 export interface LedgerService {
-  approveAction(actionId: string): Promise<LedgerAction>;
+  approveAction(
+    actionId: string,
+    context: ApprovalContext
+  ): Promise<LedgerAction>;
+}
+
+export interface ApprovalContext {
+  actorType: "person" | "policy";
+  actorId: string;
+  approvedPayloadHash: string;
+}
+
+import type { PoolClient } from "pg";
+
+export interface ApprovalAuthorizer {
+  authorizeApproval(
+    client: PoolClient,
+    actionId: string,
+    projectId: string,
+    context: ApprovalContext
+  ): Promise<void>;
 }
