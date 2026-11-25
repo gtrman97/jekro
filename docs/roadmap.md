@@ -86,3 +86,25 @@ The sandbox and the real agent are the largest uncertainty, so M3 dates are the 
 | Polishing the UI instead of the engineering | The UI stays minimal until the slice works. |
 | Scope creep from new ideas | New ideas go to a backlog, not into the current step. |
 | Undo and external effects are harder than expected | Classify effects explicitly. M1 handles internal effects only. |
+
+## ADR-0004 Implementation Progress — November 2026
+
+**Status:** Database and ledger infrastructure foundation implemented and locally tested.
+
+### Implemented and tested
+- PostgreSQL schema with versioned migrations.
+- Transactional approval, audit-event insertion, and job creation.
+- Concurrent job claiming with `FOR UPDATE SKIP LOCKED`.
+- Worker leases and token-based completion fencing.
+- Expired-lease recovery.
+- Transactional dead-letter handling with action-state updates and audit events.
+- Integration tests covering successful operations and rollback scenarios.
+
+### Remaining work
+- Implement production authorization and trusted user identity.
+- Complete worker execution with transactional effect recording.
+- Implement failure reporting, retry scheduling, and backoff.
+- Strengthen isolation and concurrency tests.
+- Complete the end-to-end API, worker, and UI workflow.
+
+These remaining tasks are required before declaring the full M1 execution system production-ready.

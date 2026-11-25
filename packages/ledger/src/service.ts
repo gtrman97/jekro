@@ -35,7 +35,7 @@ export class DefaultLedgerService implements LedgerService {
            payload_hash,
            base_version,
            expires_at,
-           ticket_id
+           ticket_id,
            project_id,
            created_at
          FROM actions
