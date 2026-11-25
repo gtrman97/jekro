@@ -2,7 +2,7 @@ import type { Pool, PoolClient } from "pg";
 
 export async function withTransaction<T>(
   pool: Pool,
-  operation: (client: PoolClient) => Promise<T>
+  operation: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();
 
@@ -20,7 +20,8 @@ export async function withTransaction<T>(
     } catch (rollbackError) {
       throw new AggregateError(
         [error, rollbackError],
-        "Transaction failed and rollback also failed"
+        "Transaction failed and rollback also failed",
+        { cause: rollbackError },
       );
     }
 
