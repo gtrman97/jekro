@@ -74,6 +74,18 @@ try {
         continue;
       }
 
+      if (version === "0003_correct_ticket_statuses") {
+        // Permit both labels during conversion. The tracked migration replaces
+        // this bridge constraint before the transaction can commit.
+        await client.query(`
+          ALTER TABLE tickets DROP CONSTRAINT tickets_status_check;
+          ALTER TABLE tickets ADD CONSTRAINT tickets_status_check
+            CHECK (status IN ('open', 'in_progress', 'closed', 'done'));
+          UPDATE tickets SET status = 'done', version = version + 1
+            WHERE status = 'closed';
+        `);
+      }
+
       await client.query(sql);
 
       await client.query(

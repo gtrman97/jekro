@@ -15,7 +15,8 @@
   "scripts": {
     "typecheck": "tsc -p apps/api/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/worker/tsconfig.json && tsc -p packages/ledger/tsconfig.json && tsc -p packages/shared/tsconfig.json",
     "lint": "eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
-    "test": "npm test -w @jekro/shared && npm test -w @jekro/ledger && npm test -w @jekro/api"
+    "test": "npm test -w @jekro/shared && npm test -w @jekro/ledger && npm test -w @jekro/api",
+    "test:integration": "npm run build -w @jekro/ledger && node --test --test-concurrency=1 apps/api/integration/*.test.mjs packages/ledger/integration/*.test.mjs"
   },
   "keywords": [],
   "author": "",

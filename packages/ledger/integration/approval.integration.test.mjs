@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 
+import { lockTicketVersionForApproval } from "../../../apps/api/src/approval-target.ts";
+
 import { DefaultLedgerService } from "../dist/service.js";
 
-test("rejects approval when payload hash does not match", async () => {
+test("rejects invalid approvals without changing state, events, or jobs", async (t) => {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
@@ -29,11 +31,12 @@ test("rejects approval when payload hash does not match", async () => {
   const actionId = randomUUID();
 
   // Test-only authorizer, not a production authorization policy.
+  let authorizationCalls = 0;
   const authorizer = {
-    async authorizeApproval() {},
+    async authorizeApproval() { authorizationCalls += 1; },
   };
 
-  const ledger = new DefaultLedgerService(pool, authorizer);
+  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval);
 
   try {
     await pool.query(
@@ -79,12 +82,40 @@ test("rejects approval when payload hash does not match", async () => {
 
     await assert.rejects(
       ledger.approveAction(actionId, {
+        projectId,
         actorType: "person",
         actorId: "test-user",
         approvedPayloadHash: "wrong-hash",
       }),
       /Approved payload does not match/
     );
+
+    await t.test("rejects approval from another project before authorization", async () => {
+      const before = authorizationCalls;
+      await assert.rejects(
+        ledger.approveAction(actionId, {
+          projectId: randomUUID(),
+          actorType: "person",
+          actorId: "test-user",
+          approvedPayloadHash: "correct-hash",
+        }),
+        /Action not found/,
+      );
+      assert.equal(authorizationCalls, before);
+    });
+
+    await t.test("rejects a stale proposal with the matching approval hash", async () => {
+      await pool.query("UPDATE tickets SET version = version + 1 WHERE id = $1", [ticketId]);
+      await assert.rejects(
+        ledger.approveAction(actionId, {
+          projectId,
+          actorType: "person",
+          actorId: "test-user",
+          approvedPayloadHash: "correct-hash",
+        }),
+        /Action is stale/,
+      );
+    });
 
     const { rows } = await pool.query(
       `SELECT

@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 export type ActionStatus =
   | "proposed"
   | "approved"
@@ -26,12 +28,11 @@ export interface LedgerService {
 }
 
 export interface ApprovalContext {
+  projectId: string;
   actorType: "person" | "policy";
   actorId: string;
   approvedPayloadHash: string;
 }
-
-import type { PoolClient } from "pg";
 
 export interface ApprovalAuthorizer {
   authorizeApproval(
@@ -41,3 +42,9 @@ export interface ApprovalAuthorizer {
     context: ApprovalContext
   ): Promise<void>;
 }
+/** Load the target version under a row lock on the active approval transaction. */
+export type LockApprovalTargetVersion = (
+  client: PoolClient,
+  projectId: string,
+  targetId: string,
+) => Promise<number | undefined>;
