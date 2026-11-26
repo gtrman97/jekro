@@ -9,6 +9,26 @@ jobs:
     name: Code quality checks
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://jekro:jekro_ci@127.0.0.1:5432/jekro
+      MIGRATION_DATABASE_URL: postgresql://jekro:jekro_ci@127.0.0.1:5432/jekro_migration_test
+      TEST_DATABASE_URL: postgresql://jekro:jekro_ci@127.0.0.1:5432/jekro_test
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jekro
+          POSTGRES_PASSWORD: jekro_ci
+          POSTGRES_DB: jekro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jekro -d jekro"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -31,5 +51,15 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Prepare disposable databases
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE jekro_test'
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE jekro_migration_test'
+          node apps/api/scripts/migrate.mjs
+          DATABASE_URL="$TEST_DATABASE_URL" node apps/api/scripts/migrate.mjs
+
       - name: Run test suites
         run: npm test
+
+      - name: Run PostgreSQL integration tests
+        run: npm run test:integration

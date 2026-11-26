@@ -6,7 +6,7 @@ import { Pool } from "pg";
 import { deadLetterExhaustedJobs } from "../dist/dead-letter-jobs.js";
 
 test("dead-lettering updates jobs, actions and audit history", async () => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
 
   const url = new URL(databaseUrl);

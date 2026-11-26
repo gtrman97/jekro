@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 
+import { lockTicketVersionForApproval } from "../../../apps/api/src/approval-target.ts";
+
 import { DefaultLedgerService } from "../dist/service.js";
 
 test("approval records an event and creates a job", async () => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required");
@@ -33,7 +35,7 @@ test("approval records an event and creates a job", async () => {
     async authorizeApproval() {},
   };
 
-  const ledger = new DefaultLedgerService(pool, authorizer);
+  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval);
 
   try {
     await pool.query(
@@ -78,6 +80,7 @@ test("approval records an event and creates a job", async () => {
 
     // Approve the action.
     const approved = await ledger.approveAction(actionId, {
+      projectId,
       actorType: "person",
       actorId: "test-user",
       approvedPayloadHash: "correct-hash",
@@ -146,6 +149,7 @@ test("approval records an event and creates a job", async () => {
     // Approval will try to create another job and fail.
     await assert.rejects(
       ledger.approveAction(failingActionId, {
+        projectId,
         actorType: "person",
         actorId: "test-user",
         approvedPayloadHash: "correct-hash",
