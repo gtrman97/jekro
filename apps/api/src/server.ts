@@ -1,46 +1,31 @@
-import { createServer } from "node:http";
-import { CreateTicketSchema } from "@jekro/shared";
+import express from "express";
+import { handleError, notFound } from "./middleware/errors.ts";
+import { ticketRoutes } from "./routes/tickets.ts";
 
-export function createAppServer() {
-  return createServer(async (request, response) => {
-    const sendJson = (status: number, data: unknown) => {
-      response.writeHead(status, {
-        "Content-Type": "application/json",
-      });
+export function createApp() {
+  const app = express();
+  app.disable("x-powered-by");
+  app.disable("etag");
+  app.enable("case sensitive routing");
+  app.enable("strict routing");
 
-      response.end(JSON.stringify(data));
-    };
-
-    if (request.url === "/health" && request.method === "GET") {
-      sendJson(200, { status: "ok" });
+  // The original endpoints matched exact request targets.
+  app.use((request, response, next) => {
+    if (request.originalUrl !== request.path) {
+      notFound(request, response, next);
       return;
     }
-
-    if (request.url === "/tickets" && request.method === "POST") {
-      let body = "";
-
-      try {
-        for await (const chunk of request) {
-          body += chunk.toString();
-        }
-
-        const json: unknown = JSON.parse(body);
-        const result = CreateTicketSchema.safeParse(json);
-
-        if (!result.success) {
-          sendJson(400, { error: "Invalid ticket data" });
-          return;
-        }
-
-        // Ticket persistence belongs to a later milestone.
-        sendJson(501, { error: "Ticket creation not implemented" });
-      } catch {
-        sendJson(400, { error: "Invalid JSON request" });
-      }
-
-      return;
-    }
-
-    sendJson(404, { error: "Not found" });
+    next();
   });
+
+  // Express would otherwise handle HEAD through the GET route.
+  app.head("/health", notFound);
+  app.get("/health", (_request, response) => {
+    // Liveness always returns 200, including for conditional requests.
+    response.type("application/json").end(JSON.stringify({ status: "ok" }));
+  });
+  app.use(ticketRoutes);
+  app.use(notFound);
+  app.use(handleError);
+  return app;
 }

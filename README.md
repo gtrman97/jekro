@@ -1,6 +1,16 @@
 # jekro
 An AI-native issue tracker where people and AI agents work tickets side by side, with a built-in ledger that records, approves, and safely executes every agent action.
 
+## API development
+
+Build the shared schemas with `npm run build -w @jekro/shared`, then start
+the Express API with `npm start -w @jekro/api`. It listens on
+`127.0.0.1:3000`. `GET /health` reports process liveness.
+`POST /tickets` validates the JSON body using `@jekro/shared` and returns
+501 for valid input while ticket creation is pending. The route accepts
+bodies up to 100 KiB. API errors use the existing JSON `{ "error": "…" }`
+envelope.
+
 ## Database verification
 
 Use Node 24 and `npm ci`. Run `node apps/api/scripts/migrate.mjs` with
