@@ -31,7 +31,11 @@ export const handleError: ErrorRequestHandler = (
       case "entity.too.large":
         response.status(413).json({ error: "Request body too large" });
         return;
+      case "charset.unsupported":
       case "encoding.unsupported":
+        response.status(415).json({ error: "Unsupported charset or content encoding" });
+        return;
+      case "entity.parse.failed":
       case "request.aborted":
       case "request.size.invalid":
         response.status(400).json({ error: "Invalid JSON request" });

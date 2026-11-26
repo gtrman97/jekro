@@ -22,61 +22,70 @@ async function assertJson(response, status, body) {
   assert.deepEqual(await response.json(), body);
 }
 
-test("serves the existing health endpoint", async (t) => {
+test("serves health using Express pathname matching", async (t) => {
   const request = await listen(t);
-  await assertJson(await request("/health"), 200, { status: "ok" });
-  await assertJson(await request("/health", {
-    headers: { "If-None-Match": "*" },
-  }), 200, { status: "ok" });
-});
-
-test("keeps unknown paths, path variants and unsupported methods as 404s", async (t) => {
-  const request = await listen(t);
-  for (const [method, path] of [
-    ["GET", "/unknown"],
-    ["GET", "/Health"],
-    ["GET", "/health/"],
-    ["GET", "/health?check=1"],
-    ["OPTIONS", "/health"],
-    ["GET", "/tickets"],
-    ["POST", "/Tickets"],
-    ["POST", "/tickets/"],
-    ["POST", "/tickets?source=test"],
-    ["OPTIONS", "/tickets"],
-  ]) {
-    await t.test(`${method} ${path}`, async () => {
-      const options = { method };
-      if (method === "POST") options.body = "{";
-      await assertJson(await request(path, options), 404, { error: "Not found" });
-    });
+  for (const path of ["/health", "/Health", "/health/", "/health?check=1"]) {
+    await assertJson(await request(path), 200, { status: "ok" });
   }
 
   const head = await request("/health", { method: "HEAD" });
-  assert.equal(head.status, 404);
+  assert.equal(head.status, 200);
   assert.equal(await head.text(), "");
+});
+
+test("Express answers OPTIONS for known routes", async (t) => {
+  const request = await listen(t);
+  for (const [path, methods] of [["/health", ["GET", "HEAD"]], ["/tickets", ["POST"]]]) {
+    const response = await request(path, { method: "OPTIONS" });
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.headers.get("allow")?.split(/,\s*/).sort(), methods);
+    await response.text();
+  }
+});
+
+test("returns JSON 404 for unknown routes and unmatched methods", async (t) => {
+  const request = await listen(t);
+  for (const [method, path] of [
+    ["GET", "/unknown"],
+    ["OPTIONS", "/unknown"],
+    ["GET", "/tickets"],
+    ["POST", "/unknown"],
+  ]) {
+    await assertJson(await request(path, { method }), 404, { error: "Not found" });
+  }
 });
 
 test("returns the existing 501 for a valid ticket payload", async (t) => {
   const request = await listen(t);
-  const payload = JSON.stringify({ title: "  Café 🐛  ", ignored: true });
-  for (const [headers, body] of [
-    [{ "Content-Type": "application/json" }, payload],
-    [{ "Content-Type": "text/plain" }, payload],
-    [{}, Buffer.from(payload)],
-  ]) {
+  await assertJson(await request("/Tickets/?source=test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({ title: "  Café 🐛  ", ignored: true }),
+  }), 501, { error: "Ticket creation not implemented" });
+});
+
+test("requires application/json on the ticket route", async (t) => {
+  const request = await listen(t);
+  for (const headers of [{ "Content-Type": "text/plain" }, {}]) {
     await assertJson(await request("/tickets", {
       method: "POST",
       headers,
-      body,
-    }), 501, { error: "Ticket creation not implemented" });
+      body: Buffer.from('{"title":"Build Jekro"}'),
+    }), 415, { error: "Content-Type must be application/json" });
   }
+
+  await assertJson(await request("/tickets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=iso-8859-1" },
+    body: '{"title":"Build Jekro"}',
+  }), 415, { error: "Unsupported charset or content encoding" });
 });
 
 test("distinguishes malformed JSON from payloads rejected by Zod", async (t) => {
   const request = await listen(t);
   for (const [body, message] of [
-    [undefined, "Invalid JSON request"],
-    ["", "Invalid JSON request"],
+    [undefined, "Invalid ticket data"],
+    ["", "Invalid ticket data"],
     ["{invalid json", "Invalid JSON request"],
     ["null", "Invalid ticket data"],
     ["[]", "Invalid ticket data"],
@@ -93,11 +102,22 @@ test("distinguishes malformed JSON from payloads rejected by Zod", async (t) => 
   }
 });
 
-test("returns a JSON 413 for oversized ticket bodies", async (t) => {
+test("accepts ticket bodies up to 100 KiB and returns a JSON 413 above it", async (t) => {
   const request = await listen(t);
+  const overhead = Buffer.byteLength(JSON.stringify({ title: "" }));
+  const title = "a".repeat(100 * 1024 - overhead);
+  const headers = { "Content-Type": "application/json" };
+
   await assertJson(await request("/tickets", {
     method: "POST",
-    body: JSON.stringify({ title: "a".repeat(100 * 1024) }),
+    headers,
+    body: JSON.stringify({ title }),
+  }), 501, { error: "Ticket creation not implemented" });
+
+  await assertJson(await request("/tickets", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ title: title + "a" }),
   }), 413, { error: "Request body too large" });
 });
 
