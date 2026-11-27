@@ -44,3 +44,26 @@ projection when a migration changes a column used by approval. The caller
 owns the PostgreSQL pool. Authorization and target-version locking use the
 same checked-out transaction client as the approval writes. The API owns the
 tracker-specific lookup and locks the ticket by project and ticket ID.
+
+## Proposal lifecycle
+
+The ledger takes the target version used to build the payload and preview.
+It verifies that version under the target lock before recording a new proposal.
+The action handler registers either `strict` or `none` for staleness.
+Strict actions require the same locked target version at approval and execution.
+A stale approval returns a conflict and leaves the proposal pending.
+A stale execution records a terminal failure with cause `stale_proposal`.
+
+Pass a positive proposal lifetime in seconds to `DefaultLedgerService` to
+override the seven-day default. PostgreSQL sets and checks the deadline.
+Expiry applies to pending proposals. To run the expiry sweep, build
+`@jekro/ledger`, set `DATABASE_URL`, and run `npm start -w @jekro/worker`.
+The worker sweeps one batch of up to 100 proposals each minute. The approval
+transaction also expires and audits overdue proposals it encounters.
+
+The application supplies the approval authorizer and action handlers. Human
+and policy callers use `approveAction` with the hash they reviewed. The audit
+event records the person ID or the policy rule ID and version. Action
+handlers execute PostgreSQL effects on the transaction client supplied by
+the ledger. The Express action routes and production handler registration
+are pending in the tracker application.

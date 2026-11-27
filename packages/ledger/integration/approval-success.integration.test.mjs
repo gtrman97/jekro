@@ -5,7 +5,8 @@ import { Pool } from "pg";
 
 import { lockTicketVersionForApproval } from "../../../apps/api/src/approval-target.ts";
 
-import { DefaultLedgerService } from "../dist/service.js";
+import { DefaultLedgerService, hashProposal } from "@jekro/ledger";
+
 
 test("approval records an event and creates a job", async () => {
   const databaseUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -35,7 +36,11 @@ test("approval records an event and creates a job", async () => {
     async authorizeApproval() {},
   };
 
-  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval);
+  const expectedHash = hashProposal({
+    actionType: "test_action", targetId: ticketId, payload: {}, preview: {},
+  });
+  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval,
+    new Map([["test_action", { staleness: "strict", effectClass: "reversible" }]]));
 
   try {
     await pool.query(
@@ -66,7 +71,7 @@ test("approval records an event and creates a job", async () => {
         $1, $2, $3, $4, $5,
         'test_action', '{}'::jsonb, '{}'::jsonb,
         'internal', 'reversible',
-        'correct-hash', 1,
+        $6, 1,
         NOW() + INTERVAL '1 hour'
       )`,
       [
@@ -75,6 +80,7 @@ test("approval records an event and creates a job", async () => {
         ticketId,
         agentId,
         randomUUID(),
+        expectedHash,
       ]
     );
 
@@ -83,7 +89,7 @@ test("approval records an event and creates a job", async () => {
       projectId,
       actorType: "person",
       actorId: "test-user",
-      approvedPayloadHash: "correct-hash",
+      approvedPayloadHash: expectedHash,
     });
 
     assert.equal(approved.status, "approved");
@@ -106,10 +112,10 @@ test("approval records an event and creates a job", async () => {
             AND from_state = 'proposed'
             AND to_state = 'approved'
             AND details->>'approved_payload_hash'
-                = 'correct-hash') AS event_count
+                = $2) AS event_count
        FROM actions a
        WHERE a.id = $1`,
-      [actionId]
+      [actionId, expectedHash]
     );
 
     assert.equal(rows[0].state, "approved");
@@ -152,7 +158,7 @@ test("approval records an event and creates a job", async () => {
         projectId,
         actorType: "person",
         actorId: "test-user",
-        approvedPayloadHash: "correct-hash",
+        approvedPayloadHash: expectedHash,
       }),
       /duplicate key value/
     );

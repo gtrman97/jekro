@@ -5,7 +5,8 @@ import { Pool } from "pg";
 
 import { lockTicketVersionForApproval } from "../../../apps/api/src/approval-target.ts";
 
-import { DefaultLedgerService } from "../dist/service.js";
+import { DefaultLedgerService, hashProposal } from "@jekro/ledger";
+
 
 test("rejects invalid approvals without changing state, events, or jobs", async (t) => {
   const databaseUrl = process.env.DATABASE_URL;
@@ -36,7 +37,11 @@ test("rejects invalid approvals without changing state, events, or jobs", async 
     async authorizeApproval() { authorizationCalls += 1; },
   };
 
-  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval);
+  const expectedHash = hashProposal({
+    actionType: "test_action", targetId: ticketId, payload: {}, preview: {},
+  });
+  const ledger = new DefaultLedgerService(pool, authorizer, lockTicketVersionForApproval,
+    new Map([["test_action", { staleness: "strict", effectClass: "reversible" }]]));
 
   try {
     await pool.query(
@@ -68,7 +73,7 @@ test("rejects invalid approvals without changing state, events, or jobs", async 
         $1, $2, $3, $4, $5,
         'test_action', '{}'::jsonb, '{}'::jsonb,
         'internal', 'reversible',
-        'correct-hash', 1,
+        $6, 1,
         NOW() + INTERVAL '1 hour'
       )`,
       [
@@ -77,6 +82,7 @@ test("rejects invalid approvals without changing state, events, or jobs", async 
         ticketId,
         agentId,
         randomUUID(),
+        expectedHash,
       ]
     );
 
@@ -97,7 +103,7 @@ test("rejects invalid approvals without changing state, events, or jobs", async 
           projectId: randomUUID(),
           actorType: "person",
           actorId: "test-user",
-          approvedPayloadHash: "correct-hash",
+          approvedPayloadHash: expectedHash,
         }),
         /Action not found/,
       );
@@ -111,7 +117,7 @@ test("rejects invalid approvals without changing state, events, or jobs", async 
           projectId,
           actorType: "person",
           actorId: "test-user",
-          approvedPayloadHash: "correct-hash",
+          approvedPayloadHash: expectedHash,
         }),
         /Action is stale/,
       );

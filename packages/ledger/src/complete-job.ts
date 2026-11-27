@@ -1,11 +1,11 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 export async function completeJob(
-  pool: Pool,
+  db: Pool | PoolClient,
   jobId: string,
   leaseToken: string
 ): Promise<boolean> {
-  const result = await pool.query(
+  const result = await db.query(
     `UPDATE jobs
      SET
        status = 'completed',
@@ -14,7 +14,7 @@ export async function completeJob(
      WHERE id = $1
        AND status = 'running'
        AND lease_token = $2
-       AND lease_expires_at > NOW()
+       AND lease_expires_at > clock_timestamp()
      RETURNING id`,
     [jobId, leaseToken]
   );
