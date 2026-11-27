@@ -2,29 +2,35 @@ import { Kysely, PostgresDialect } from "kysely";
 import type { Generated } from "kysely";
 import type { Pool } from "pg";
 
-import type { ActionStatus } from "./types.js";
+import type { ActionDefinition, ActionStatus, JsonValue } from "./types.js";
 
-// Approval uses this projection of db/migrations/0004_create_actions_and_jobs.sql.
 interface Actions {
-  id: string;
+  id: Generated<string>;
   project_id: string;
   ticket_id: string;
-  state: ActionStatus;
+  proposed_by_agent_id: string;
+  idempotency_key: string;
+  action_type: string;
+  payload: JsonValue;
+  preview: JsonValue;
+  execution_class: string;
+  effect_class: ActionDefinition["effectClass"];
+  state: Generated<ActionStatus>;
   payload_hash: string;
   base_version: number;
   expires_at: Date;
   approved_at: Date | null;
-  created_at: Date;
+  created_at: Generated<Date>;
 }
 
 interface ActionEvents {
   action_id: string;
   event_type: string;
-  from_state: ActionStatus;
+  from_state: ActionStatus | null;
   to_state: ActionStatus;
-  actor_type: "person" | "policy";
-  actor_id: string;
-  details: { approved_payload_hash: string };
+  actor_type: "person" | "policy" | "agent" | "system";
+  actor_id: string | null;
+  details: Record<string, JsonValue>;
 }
 
 interface Jobs {
@@ -32,9 +38,16 @@ interface Jobs {
   action_id: string;
 }
 
+interface Agents {
+  id: string;
+  project_id: string;
+  is_active: boolean;
+}
+
 export interface LedgerDatabase {
   actions: Actions;
   action_events: ActionEvents;
+  agents: Agents;
   jobs: Jobs;
 }
 

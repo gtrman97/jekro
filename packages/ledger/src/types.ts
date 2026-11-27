@@ -13,36 +13,65 @@ export type ActionStatus =
   | "compensating"
   | "compensated";
 
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
-  export interface LedgerAction {
+export interface ProposedChange {
+  actionType: string;
+  targetId: string;
+  payload: JsonValue;
+  preview: JsonValue;
+}
+
+export interface ProposalInput extends ProposedChange {
+  projectId: string;
+  agentId: string;
+  idempotencyKey: string;
+  /** Target version used to prepare the payload and preview. */
+  baseVersion: number;
+}
+
+export interface LedgerAction {
   id: string;
   status: ActionStatus;
   createdAt: Date;
 }
 
-export interface LedgerService {
-  approveAction(
-    actionId: string,
-    context: ApprovalContext
-  ): Promise<LedgerAction>;
+export interface LedgerProposal extends LedgerAction {
+  payloadHash: string;
+  baseVersion: number;
+  expiresAt: Date;
 }
 
-export interface ApprovalContext {
+export type ApprovalContext = {
   projectId: string;
-  actorType: "person" | "policy";
-  actorId: string;
   approvedPayloadHash: string;
-}
+} & (
+  | { actorType: "person"; actorId: string }
+  | { actorType: "policy"; actorId: string; policyVersion: string }
+);
 
 export interface ApprovalAuthorizer {
   authorizeApproval(
     client: PoolClient,
     actionId: string,
     projectId: string,
-    context: ApprovalContext
+    context: ApprovalContext,
   ): Promise<void>;
 }
-/** Load the target version under a row lock on the active approval transaction. */
+
+export interface ActionDefinition {
+  staleness: "strict" | "none";
+  effectClass: "reversible" | "compensatable" | "irreversible";
+  execute(client: PoolClient, action: ProposedChange & { projectId: string }): Promise<void>;
+}
+
+export interface LedgerService {
+  proposeAction(input: ProposalInput): Promise<LedgerProposal>;
+  approveAction(actionId: string, context: ApprovalContext): Promise<LedgerAction>;
+  executeAction(projectId: string, jobId: string, leaseToken: string): Promise<LedgerAction>;
+}
+
+/** Load the target version under a row lock on the active ledger transaction. */
 export type LockApprovalTargetVersion = (
   client: PoolClient,
   projectId: string,
